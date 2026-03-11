@@ -20,7 +20,6 @@ extensions = [
         Extension("calculate_emax", ["calculate_emax.pyx"]),
         Extension("single_men", ["single_men.pyx"]),
         Extension("single_women", ["single_women.pyx"]),
-        Extension("randn", ["randn.cc"]),
         Extension("seed", ["seed.pyx"]),
         Extension("married_couple_emax", ["married_couple_emax.pyx"])
 ]

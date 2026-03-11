@@ -1,6 +1,6 @@
 import cohorts
 # number of draws
-cdef int DRAW_B = 1   # DRAW_B = 30 - backword
+cdef int DRAW_B = 1   # temporary backward draws for fast dynamic smoke test
 DRAW_F = 5000         # forward draws
 cdef int cohort = int(cohorts.cohort[0:4])
 race = cohorts.cohort[4:]

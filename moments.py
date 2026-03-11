@@ -46,6 +46,26 @@ class Moments:
     welfare_moments_unemployed = np.zeros(c.max_period_f)
     welfare_counter_unemployed = np.zeros(c.max_period_f)
 
+def safe_divide(numerator, denominator, fill_value=0.0):
+    numerator = np.asarray(numerator, dtype=float)
+    denominator = np.asarray(denominator, dtype=float)
+    return np.divide(
+        numerator,
+        denominator,
+        out=np.full_like(numerator, fill_value, dtype=float),
+        where=denominator != 0,
+    )
+
+def safe_divide_display(numerator, denominator):
+    return safe_divide(numerator, denominator, fill_value=np.nan)
+
+def display_table(arr):
+    arr = np.asarray(arr, dtype=object).copy()
+    for index, value in np.ndenumerate(arr):
+        if isinstance(value, (float, np.floating)) and np.isnan(value):
+            arr[index] = 'NA'
+    return arr
+
 def decimate(arr, first_row, last_row, avg_size):
     cols = arr.shape[1]
     rows = arr.shape[0]
@@ -88,42 +108,56 @@ def calculate_moments(m, display_moments):
     age_title = np.array([age_group_description]).T
     #    MARRIED WOMEN ####
     age_arr = np.arange(17, 17+max_period_by_cohort)
-    temp1 = m.wage_moments_wife_married/m.wage_counter_wife_married
-    temp2 = (m.emp_moments_wife_married.T/m.marriage_moments_w).T
+    temp1 = safe_divide(m.wage_moments_wife_married, m.wage_counter_wife_married)
+    temp2 = safe_divide(m.emp_moments_wife_married.T, m.marriage_moments_w).T
+    temp1_display = safe_divide_display(m.wage_moments_wife_married, m.wage_counter_wife_married)
+    temp2_display = safe_divide_display(m.emp_moments_wife_married.T, m.marriage_moments_w).T
     estimated_married_moments_w = np.c_[age_arr, temp1[0:max_period_by_cohort], temp2[0:max_period_by_cohort,[1, 2]],
                                         actual.actual_married_moments_w[0:max_period_by_cohort,[5, 7, 6]]]
+    estimated_married_moments_w_display = np.c_[age_arr, temp1_display[0:max_period_by_cohort], temp2_display[0:max_period_by_cohort,[1, 2]],
+                                                actual.actual_married_moments_w[0:max_period_by_cohort,[5, 7, 6]]]
 
     temp3 = decimate(estimated_married_moments_w, 8, max_period_by_cohort-1, 5)
+    temp3_display = decimate(estimated_married_moments_w_display, 8, max_period_by_cohort-1, 5)
     mse_wage_wife_married = np.square(np.subtract(temp3[:,1]/1000,temp3[:,4]/1000)).mean()
     mse_emp_wife_married = np.square(np.subtract(100*temp3[:,[2,3]],100*temp3[:,[5,6]])).mean()
     headers = ["Age", "Fitted: Wage", "part", "full", "Actual: Wage",  "part", "full"]
     #table = tabulate(estimated_married_moments_w[[8, 13 ,18 ,23, 28], :], headers, floatfmt=".2f", tablefmt="simple")
-    table = tabulate(temp3, headers, floatfmt=".2f", tablefmt="simple")
+    table = tabulate(display_table(temp3_display), headers, floatfmt=".2f", tablefmt="simple")
     print(" married women moments")
     print(table)
     #    MARRIED MEN ####
-    temp1 = m.wage_moments_husband_married / m.wage_counter_husband_married
-    temp2 = (m.emp_moments_husband_married.T / m.marriage_moments_h).T
+    temp1 = safe_divide(m.wage_moments_husband_married, m.wage_counter_husband_married)
+    temp2 = safe_divide(m.emp_moments_husband_married.T, m.marriage_moments_h).T
+    temp1_display = safe_divide_display(m.wage_moments_husband_married, m.wage_counter_husband_married)
+    temp2_display = safe_divide_display(m.emp_moments_husband_married.T, m.marriage_moments_h).T
     estimated_married_moments_h = np.c_[age_arr, temp1[0:max_period_by_cohort], temp2[0:max_period_by_cohort, [1, 2]],
                                         actual.actual_married_moments_h[0:max_period_by_cohort, [5, 7, 6]]]
+    estimated_married_moments_h_display = np.c_[age_arr, temp1_display[0:max_period_by_cohort], temp2_display[0:max_period_by_cohort, [1, 2]],
+                                                actual.actual_married_moments_h[0:max_period_by_cohort, [5, 7, 6]]]
 
     temp3 = decimate(estimated_married_moments_h, 8, max_period_by_cohort-1, 5)
+    temp3_display = decimate(estimated_married_moments_h_display, 8, max_period_by_cohort-1, 5)
     mse_wage_husband_married = np.square(np.subtract(temp3[:,1]/1000,temp3[:,4]/1000)).mean()
     mse_emp_husband_married = np.square(np.subtract(100*temp3[:,[2,3]],100*temp3[:,[5,6]])).mean()
-    table = tabulate(temp3, headers, floatfmt=".2f", tablefmt="simple")
+    table = tabulate(display_table(temp3_display), headers, floatfmt=".2f", tablefmt="simple")
     print(" married men moments")
     print(table)
     #    MARRIED COUPLE CHILDREN #########################
     age_arr = np.arange(20, 41)
-    temp = (m.fertility_moments_married.T / m.marriage_moments_w).T
+    temp = safe_divide(m.fertility_moments_married.T, m.marriage_moments_w).T
+    temp_display = safe_divide_display(m.fertility_moments_married.T, m.marriage_moments_w).T
     estimated_married_kids_moments = np.c_[age_arr, temp[3:24, :],
                                            actual.actual_kids_distribution_moments_m[0:21, 3:7]]
+    estimated_married_kids_moments_display = np.c_[age_arr, temp_display[3:24, :],
+                                                   actual.actual_kids_distribution_moments_m[0:21, 3:7]]
     temp3 = decimate(estimated_married_kids_moments, 5, 20, 5)
+    temp3_display = decimate(estimated_married_kids_moments_display, 5, 20, 5)
 
     mse_kids_married = np.square(np.subtract(100*temp3[:, [1, 2, 3, 4]], 100*temp3[:, [5, 6, 7, 8]])).mean()
     headers = ["Age", "Fitted: No-Kids", "1-Kid", "2-Kids", "3+Kids", "Actual: No-Kids", "1-Kid", "2-Kids", "3+Kids" ]
     #table = tabulate(estimated_married_kids_moments[[5, 10, 15], ], headers, floatfmt=".2f", tablefmt="simple")
-    table = tabulate(temp3, headers, floatfmt=".2f", tablefmt="simple")
+    table = tabulate(display_table(temp3_display), headers, floatfmt=".2f", tablefmt="simple")
     print(" married couple children moments")
     print(table)
 
@@ -137,44 +171,61 @@ def calculate_moments(m, display_moments):
 
     ############### SINGLES #####################################################
     age_arr = np.arange(17, 17+max_period_by_cohort)
-    temp1 = m.wage_moments_wife_single / m.wage_counter_wife_single
-    temp2 = (m.emp_moments_wife_single.T / (c.DRAW_F - m.marriage_moments_w)).T
-    temp3 = m.welfare_moments_employed / m.welfare_counter_employed
-    temp4 = m.welfare_moments_unemployed / m.welfare_counter_unemployed
+    temp1 = safe_divide(m.wage_moments_wife_single, m.wage_counter_wife_single)
+    temp2 = safe_divide(m.emp_moments_wife_single.T, (c.DRAW_F - m.marriage_moments_w)).T
+    temp3 = safe_divide(m.welfare_moments_employed, m.welfare_counter_employed)
+    temp4 = safe_divide(m.welfare_moments_unemployed, m.welfare_counter_unemployed)
+    temp1_display = safe_divide_display(m.wage_moments_wife_single, m.wage_counter_wife_single)
+    temp2_display = safe_divide_display(m.emp_moments_wife_single.T, (c.DRAW_F - m.marriage_moments_w)).T
+    temp3_display = safe_divide_display(m.welfare_moments_employed, m.welfare_counter_employed)
+    temp4_display = safe_divide_display(m.welfare_moments_unemployed, m.welfare_counter_unemployed)
     estimated_single_moments_w = np.c_[age_arr, temp1[0:max_period_by_cohort], temp2[0:max_period_by_cohort, [1,2]], temp3[0:max_period_by_cohort], temp4[0:max_period_by_cohort],
                                         actual.actual_unmarried_moments_w[0:max_period_by_cohort, [5, 7, 6, 8, 9]]]
+    estimated_single_moments_w_display = np.c_[age_arr, temp1_display[0:max_period_by_cohort], temp2_display[0:max_period_by_cohort, [1,2]], temp3_display[0:max_period_by_cohort], temp4_display[0:max_period_by_cohort],
+                                                actual.actual_unmarried_moments_w[0:max_period_by_cohort, [5, 7, 6, 8, 9]]]
     temp5 = decimate(estimated_single_moments_w, 8, max_period_by_cohort-1, 5)
+    temp5_display = decimate(estimated_single_moments_w_display, 8, max_period_by_cohort-1, 5)
     mse_wage_wife_single = np.square(np.subtract(temp5[:,1]/1000,temp5[:,6]/1000)).mean()
     mse_emp_wife_single = np.square(np.subtract(100*temp5[:,[2,3]],100*temp5[:,[7,8]])).mean()
 
     headers = ["Fitted:Age", "Wage", "part", "full", "welfare-emp", "welfare-unemp","Actual:Wage", "part", "full", "welfare-emp", "welfare-unemp"]
     #table = tabulate(estimated_single_moments_w[[8, 13 ,18 ,23, 28], :], headers, floatfmt=".2f", tablefmt="simple")
-    table = tabulate(temp5, headers, floatfmt=".2f", tablefmt="simple")
+    table = tabulate(display_table(temp5_display), headers, floatfmt=".2f", tablefmt="simple")
     print(" single women moments")
     print(table)
     #    SINGLE MEN ##################################
-    temp1 = m.wage_moments_husband_single / m.wage_counter_husband_single
-    temp2 = (m.emp_moments_husband_single.T / (c.DRAW_F - m.marriage_moments_h)).T
+    temp1 = safe_divide(m.wage_moments_husband_single, m.wage_counter_husband_single)
+    temp2 = safe_divide(m.emp_moments_husband_single.T, (c.DRAW_F - m.marriage_moments_h)).T
+    temp1_display = safe_divide_display(m.wage_moments_husband_single, m.wage_counter_husband_single)
+    temp2_display = safe_divide_display(m.emp_moments_husband_single.T, (c.DRAW_F - m.marriage_moments_h)).T
     estimated_single_moments_h = np.c_[
         age_arr, temp1[0:max_period_by_cohort], temp2[0:max_period_by_cohort, [1, 2]],
         actual.actual_unmarried_moments_h[0:max_period_by_cohort, [5, 7, 6]]]
+    estimated_single_moments_h_display = np.c_[
+        age_arr, temp1_display[0:max_period_by_cohort], temp2_display[0:max_period_by_cohort, [1, 2]],
+        actual.actual_unmarried_moments_h[0:max_period_by_cohort, [5, 7, 6]]]
     temp5 = decimate(estimated_single_moments_h, 8, max_period_by_cohort-1, 5)
+    temp5_display = decimate(estimated_single_moments_h_display, 8, max_period_by_cohort-1, 5)
     mse_wage_husband_single = np.square(np.subtract(temp5[:,1]/1000,temp5[:,4]/1000)).mean()
     mse_emp_husband_single = np.square(np.subtract(100*temp5[:,[2,3]],100*temp5[:,[5,6]])).mean()
     headers = ["Fitted:Age", "Wage", "part", "full", "Actual:Wage", "part", "full"]
-    table = tabulate(temp5, headers, floatfmt=".2f", tablefmt="simple")
+    table = tabulate(display_table(temp5_display), headers, floatfmt=".2f", tablefmt="simple")
     print(" single men moments")
     print(table)
     #######    SINGLE WOMEN CHILDREN ###############
     age_arr = np.arange(20, 41)
-    temp1 = (m.fertility_moments_single.T / (c.DRAW_F - m.marriage_moments_w)).T
+    temp1 = safe_divide(m.fertility_moments_single.T, (c.DRAW_F - m.marriage_moments_w)).T
+    temp1_display = safe_divide_display(m.fertility_moments_single.T, (c.DRAW_F - m.marriage_moments_w)).T
     estimated_single_kids_moments = np.c_[age_arr, temp1[3:24, :],
                                       actual.actual_kids_distribution_moments_um[0:21,3:7]]
+    estimated_single_kids_moments_display = np.c_[age_arr, temp1_display[3:24, :],
+                                              actual.actual_kids_distribution_moments_um[0:21,3:7]]
     temp3 = decimate(estimated_single_kids_moments, 3, 20, 5)
+    temp3_display = decimate(estimated_single_kids_moments_display, 3, 20, 5)
     mse_kids_unmarried = np.square(np.subtract(100*temp3[:,[1,2,3,4]],100*temp3[:,[5,6,7,8]])).mean()
     headers = ["Age", "Fitted:No-Kids", "1-Kid", "2-Kids", "3+Kids", "Actual: No-Kids", "1-Kid", "2-Kids", "3+Kids"]
     #table = tabulate(estimated_single_kids_moments[[5, 10, 15], :], headers, floatfmt=".2f", tablefmt="simple")
-    table = tabulate(temp3, headers, floatfmt=".2f", tablefmt="simple")
+    table = tabulate(display_table(temp3_display), headers, floatfmt=".2f", tablefmt="simple")
     print(" single women children moments")
     print(table)
 
@@ -212,19 +263,20 @@ def calculate_moments(m, display_moments):
                                          100*estimated_school_moments_h[c.max_school-2:c.max_school, [3,4]])).mean()
 
     headers = ["Age", "Fitted: HSD", "HSG", "SC", "CG", "PC", "Actual: HSD", "HSG", "SC", "CG", "PC"]
-    table = tabulate(estimated_school_moments_w[c.max_school-1:c.max_school, :], headers, floatfmt=".2f", tablefmt="simple")
+    table = tabulate(display_table(estimated_school_moments_w[c.max_school-1:c.max_school, :]), headers, floatfmt=".2f", tablefmt="simple")
     print("  women education moments")
     print(table)
-    table = tabulate(estimated_school_moments_h[c.max_school-1:c.max_school, :], headers, floatfmt=".2f", tablefmt="simple")
+    table = tabulate(display_table(estimated_school_moments_h[c.max_school-1:c.max_school, :]), headers, floatfmt=".2f", tablefmt="simple")
     print(" men education moments")
     print(table)
     ###################################################################################################
-    estimated_assortative_moments = np.c_[(m.assortative_moments / m.assortative_counter), actual.actual_assortative_moments[:,1:6]]
+    estimated_assortative_moments = np.c_[safe_divide(m.assortative_moments, m.assortative_counter), actual.actual_assortative_moments[:,1:6]]
+    estimated_assortative_moments_display = np.c_[safe_divide_display(m.assortative_moments, m.assortative_counter), actual.actual_assortative_moments[:,1:6]]
     mse_assortative = np.square(np.subtract(100*estimated_assortative_moments[:,0:5],100*estimated_assortative_moments[:, 5:10])).mean()
 
     print("assortative mating: column:wife, row:husband  ")
     headers = ["Fitted:HSD", "HSG", "SC", "CG", "PC", "Actual:HSD", "HSG", "SC", "CG", "PC"]
-    table = tabulate(estimated_assortative_moments, headers, floatfmt=".2f", tablefmt="simple")
+    table = tabulate(display_table(estimated_assortative_moments_display), headers, floatfmt=".2f", tablefmt="simple")
     print(table)
     ###################################################################################################
     objective_function = mse_wage_wife_married + mse_emp_wife_married + \

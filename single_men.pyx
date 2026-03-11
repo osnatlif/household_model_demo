@@ -74,39 +74,42 @@ cdef int single_men(int t, double[:, :, :, :, :, :, :, :, :, :, :, :, :, :, :, :
                                 for draw in range(0, c.DRAW_B):
                                     married_index = -99
                                     choose_partner = 0
-                                    _, _, prob_full_h, prob_part_h, tmp_full_h = calculate_wage.calculate_wage_h(husband)
-                                    calculate_utility_single_men(h_s_emax, 0, 0, tmp_full_h, husband, t, u_h_single_full, 1)
-
-                                    #if husband.age < 20:
-                                    #    prob_meet_potential_partner = cmath.exp(p.omega1) / (1.0 + cmath.exp(p.omega1))
-                                    #else:
-                                    #    temp = p.omega3 + p.omega4_h * husband.age + p.omega5_h * husband.age * husband.age
-                                    #    prob_meet_potential_partner = cmath.exp(temp) / (1.0 + cmath.exp(temp))
-
-                                    prob_meet_potential_partner = meeting_partner.prob(wife.age)
-                                    assert prob_meet_potential_partner >= 0 and prob_meet_potential_partner <= 1, "invalid prob: " + str(prob_meet_potential_partner)
-
+                                    _, _, prob_full_h, prob_part_h, tmp_full_h = calculate_wage.calculate_wage_h(
+                                        husband)
+                                    single_men_value, single_men_index, _ = calculate_utility_single_men(
+                                        h_s_emax, 0, 0, tmp_full_h, husband, t,
+                                        u_h_single_full, 1)
+                                    if husband.age < 20:
+                                        prob_meet_potential_partner = cmath.exp(p.omega1) / (1.0 + cmath.exp(p.omega1))
+                                    elif single_men_index == 6 and husband.schooling < 4:
+                                        prob_meet_potential_partner = cmath.exp(p.omega2) / (1.0 + cmath.exp(p.omega2))
+                                    else:
+                                        prob_meet_potential_partner = meeting_partner.prob(husband.age)
                                     wife = draw_wife.draw_wife_back(husband, c.mother[0], c.mother[1], c.mother[2])
-                                    _, _, prob_full_w, prob_part_w, tmp_full_w = calculate_wage.calculate_wage_w(wife)
-                                    calculate_utility_married(w_emax, h_emax, 0, 0, 0, 0, tmp_full_h, tmp_full_w, wife, husband, t, 
-                                            u_wife, u_husband, u_husband_full, u_wife_full, 1)
-                                    calculate_utility_single_women(w_s_emax, 0, 0, tmp_full_w, wife, t, u_w_single_full, 1)
-                                    #if prob_meet_potential_partner < 0.05:
-                                    #    prob_meet_potential_partner = 0.05
-                                    temp = prob_meet_potential_partner * (
-                                                 prob_full_h * prob_full_w * maxvalue_filter(u_husband_full, [0,1,2,3,6,7, 8,9], 8) +
-                                                 prob_full_h * prob_part_w * maxvalue_filter(u_husband_full, [0,1,2,3,12,13, 14,15], 8) +
-                                                 prob_full_h * (1 - prob_full_w - prob_part_w) * maxvalue_filter(u_husband_full, [0,1,2,3], 4) +
-                                                 prob_part_h * prob_full_w * maxvalue_filter(u_husband_full, [0,1,4,5,10,11, 6,7], 8) +
-                                                 prob_part_h * prob_part_w * maxvalue_filter(u_husband_full, [0,1,4,5,16,17, 12,13], 8) +
-                                                 prob_part_h * (1 - prob_full_w - prob_part_w) * maxvalue_filter(u_husband_full, [0,1,4,5], 4) +
-                                                 (1 - prob_full_h - prob_part_h) * prob_full_w * maxvalue_filter(u_husband_full, [0,1,6,7], 4) +
-                                                 (1 - prob_full_h - prob_part_h) * prob_part_w * maxvalue_filter(u_husband_full, [0,1,12,13], 4) +
-                                                 (1 - prob_full_h - prob_part_h) * (1 - prob_full_w - prob_part_w) * maxvalue_filter(u_husband_full, [0,1], 2)) + \
-                                                 (1 - prob_meet_potential_partner) * prob_full_h * maxvalue_filter(u_h_single_full, [0, 2, 6], 3)+ \
-                                                 (1 - prob_meet_potential_partner) * prob_part_h * maxvalue_filter(u_h_single_full, [0, 4, 6], 3) + \
-                                                 (1 - prob_meet_potential_partner) * (1 - prob_full_h - prob_part_h) * maxvalue_filter(u_h_single_full, [0, 6], 2)
 
+                                    _, _, prob_full_w, prob_part_w, tmp_full_w = calculate_wage.calculate_wage_w(
+                                        wife)
+                                    home_time_h, home_time_w, home_time_h_preg, home_time_w_preg =                                         calculate_utility_married(w_emax, h_emax, 0, 0, 0, 0,
+                                                                  tmp_full_h, tmp_full_w, wife,
+                                                                  husband, t, u_wife, u_husband,
+                                                                  u_wife_full, u_husband_full,
+                                                                  1)
+                                    single_women_value, single_women_index, single_women_ar = calculate_utility_single_women(
+                                        w_s_emax, 0, 0,
+                                        tmp_full_w, wife, t, u_w_single_full, 1)
+
+                                    weighted_utility = float('-inf')
+                                    married_index = -99
+                                    for i in range(0, 18):
+                                        if u_wife[i] > single_women_value and u_husband[i] > single_men_value:
+                                            if c.bp * u_wife[i] + (1 - c.bp) * u_husband[i] > weighted_utility:
+                                                weighted_utility = c.bp * u_wife[i] + (1 - c.bp) * u_husband[i]
+                                                married_index = i
+                                    single_outside_option = prob_full_h * maxvalue_filter(u_h_single_full, [0, 2, 6], 3) +                                                            prob_part_h * maxvalue_filter(u_h_single_full, [0, 4, 6], 3) +                                                            (1 - prob_full_h - prob_part_h) * maxvalue_filter(u_h_single_full, [0, 6], 2)
+                                    if married_index > -99:
+                                        temp = prob_meet_potential_partner * u_husband[married_index] + (1 - prob_meet_potential_partner) * single_outside_option
+                                    else:
+                                        temp = single_outside_option
                                     sum_emax += temp
 
                                 # end draw backward loop

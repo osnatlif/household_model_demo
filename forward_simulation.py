@@ -230,4 +230,4 @@ def forward_simulation(w_emax, h_emax, w_s_emax, h_s_emax, verbose, display_mome
             # print(married_index)
 
     estimated_moments = calculate_moments(m, display_moments)
-    return 0.0
+    return estimated_moments
